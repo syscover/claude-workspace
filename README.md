@@ -1,6 +1,13 @@
-# claude-monitor
+# claude-workspace
 
-A terminal dashboard of the Claude Code sessions running on this Mac. It shows which session works, which one waits for you, and where each one works. Press `Enter` on a session to jump to its Ghostty tab.
+A terminal workspace for Claude Code on macOS, with two commands:
+
+- `claude-monitor`: a live dashboard of the Claude Code sessions running on this Mac.
+- `claude-workspace`: opens the monitor above the Backlog.md board in Ghostty.
+
+## claude-monitor at a glance
+
+The monitor shows which session works, which one waits for you, and where each one works. Press `Enter` on a session to jump to its Ghostty tab.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -12,8 +19,6 @@ A terminal dashboard of the Claude Code sessions running on this Mac. It shows w
 └──────────────────────────────────────────────────────────────────────┘
 1–3 of 7 · ↑/↓ select · enter focus · q quit
 ```
-
-The repository also ships `claude-workspace`, which opens the monitor above the Backlog.md board in Ghostty: in one split window, or in two separate windows.
 
 ## Requirements
 

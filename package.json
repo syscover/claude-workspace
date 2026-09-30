@@ -1,11 +1,12 @@
 {
-  "name": "claude-monitor",
-  "version": "0.1.0",
+  "name": "claude-workspace",
+  "version": "0.2.0",
   "private": true,
-  "description": "Terminal dashboard of the local Claude Code sessions, with focus on their Ghostty tab",
+  "description": "Terminal workspace for Claude Code: a live dashboard of the local sessions and a Ghostty launcher that opens it above the Backlog.md board",
   "type": "module",
   "bin": {
-    "claude-monitor": "dist/cli.js"
+    "claude-monitor": "dist/cli.js",
+    "claude-workspace": "bin/claude-workspace"
   },
   "scripts": {
     "build": "tsc",

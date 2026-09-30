@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Opens claude-monitor above the Backlog.md board on the screen of the frontmost Ghostty window.
-# Default: one window split in two panes. -w / --window: two separate windows.
+# Default: splits the current terminal, board below, and runs the monitor in it.
+# -w / --window: two new separate windows.
 # The monitor keeps a fixed height; the board takes the rest of the usable height.
 # Needs Accessibility permission for Ghostty (System Events moves the windows).
 set -euo pipefail
@@ -25,7 +26,13 @@ done
 # with the current Ghostty font; measure again if the font changes.
 MONITOR_HEIGHT=${MONITOR_HEIGHT:-228}
 
-osascript - "$MODE" "$MONITOR_HEIGHT" "$BOARD_DIR" >/dev/null <<'APPLESCRIPT'
+# In split mode the script works on its own terminal, found by its tty.
+TTY_PATH=""
+if [[ $MODE == split ]]; then
+    TTY_PATH=$(tty) || { echo "claude-workspace: split mode runs inside a terminal; use --window" >&2; exit 1; }
+fi
+
+osascript - "$MODE" "$MONITOR_HEIGHT" "$BOARD_DIR" "$TTY_PATH" >/dev/null <<'APPLESCRIPT'
 use framework "AppKit"
 use scripting additions
 
@@ -36,6 +43,7 @@ on run argv
     set mode to item 1 of argv
     set monitorHeight to (item 2 of argv) as integer
     set boardDir to item 3 of argv
+    set ttyPath to item 4 of argv
 
     -- Cocoa measures y from the bottom of the first screen (the one with the menu bar);
     -- System Events measures it from the top of that same screen.
@@ -70,15 +78,25 @@ on run argv
         set boardTop to monitorY + realHeight
         my openWindow("backlog board", boardDir, {x, boardTop, w, top + h - boardTop})
     else
-        set {win, windowY, realHeight} to my openWindow("claude-monitor", boardDir, {x, top, w, h})
         tell application "Ghostty"
-            set monitorPane to focused terminal of selected tab of win
+            set monitorPane to first terminal whose tty is ttyPath
             split monitorPane direction down with configuration (my shellConfig("backlog board", boardDir))
         end tell
         delay 0.5
+        -- The command runs in the frontmost window, so that is the one to fill the screen.
+        tell application "System Events" to tell process "Ghostty"
+            set position of window 1 to {x, top}
+            set size of window 1 to {w, h}
+            set realHeight to item 2 of (get size of window 1)
+        end tell
+        delay 0.3
         -- A new split starts at half of the content height; move the divider up to the monitor height.
         set moveUp to round ((realHeight - titleBar) / 2 - (monitorHeight - titleBar))
-        tell application "Ghostty" to perform action ("resize_split:up," & moveUp) on monitorPane
+        tell application "Ghostty"
+            perform action ("resize_split:up," & moveUp) on monitorPane
+            -- The new split takes the focus; give it back so the monitor gets the keys.
+            focus monitorPane
+        end tell
     end if
 end run
 
@@ -103,3 +121,7 @@ on openWindow(shellCommand, dir, frame)
     end tell
 end openWindow
 APPLESCRIPT
+
+if [[ $MODE == split ]]; then
+    exec claude-monitor
+fi

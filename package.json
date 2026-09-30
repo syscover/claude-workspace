@@ -1,6 +1,6 @@
 {
   "name": "claude-workspace",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Terminal workspace for Claude Code: a live dashboard of the local sessions and a Ghostty launcher that opens it above the Backlog.md board",
   "type": "module",
@@ -9,7 +9,7 @@
     "claude-workspace": "bin/claude-workspace"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/cli.js",
     "dev": "tsx src/cli.tsx",
     "test": "vitest run"
   },

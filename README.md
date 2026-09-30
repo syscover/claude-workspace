@@ -30,14 +30,36 @@ The monitor shows which session works, which one waits for you, and where each o
 
 ## Installation
 
+Clone the repository, build it and link both commands into a folder on your `PATH`:
+
 ```bash
+git clone https://github.com/syscover/claude-workspace.git
+cd claude-workspace
 pnpm install
 pnpm build
+mkdir -p ~/.local/bin
 ln -sf "$PWD/dist/cli.js" ~/.local/bin/claude-monitor
 ln -sf "$PWD/bin/claude-workspace" ~/.local/bin/claude-workspace
 ```
 
-`~/.local/bin` must be on the `PATH`. After a code change, run `pnpm build` again: the link points to `dist/`.
+`~/.local/bin` must be on the `PATH`. If it is not, add this line to `~/.zshrc`:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+To install a specific version, clone its tag, for example `git clone --branch v0.3.0 …`. The versions are listed on the [tags page](https://github.com/syscover/claude-workspace/tags).
+
+### Update
+
+```bash
+cd claude-workspace
+git pull
+pnpm install
+pnpm build
+```
+
+The links point into the clone, so the commands use the new version right after the build. The same applies after a local code change: run `pnpm build` again.
 
 ## claude-monitor
 

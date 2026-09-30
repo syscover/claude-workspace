@@ -13,7 +13,7 @@ A terminal dashboard of the Claude Code sessions running on this Mac. It shows w
 1–3 of 7 · ↑/↓ select · enter focus · q quit
 ```
 
-The repository also ships `claude-workspace`, which opens the monitor and the Backlog.md board in two stacked Ghostty windows.
+The repository also ships `claude-workspace`, which opens the monitor above the Backlog.md board in Ghostty: in one split window, or in two separate windows.
 
 ## Requirements
 
@@ -70,20 +70,19 @@ When a session changes to `waiting` or to `idle`, macOS shows a notification wit
 ## claude-workspace
 
 ```bash
-claude-workspace [board-folder]
+claude-workspace [-w|--window] [board-folder]
 ```
 
-It opens two Ghostty windows on the screen of the frontmost Ghostty window:
-
-- the monitor at the top, with a fixed height;
-- `backlog board` below it, in the rest of the usable height.
+It opens the monitor at the top, with a fixed height, and `backlog board` below it, in the rest of the usable height. Both go on the screen of the frontmost Ghostty window.
 
 | Option | Default | Meaning |
 | --- | --- | --- |
+| (none) | | One window split in two panes: monitor above, board below |
+| `-w`, `--window` | | Two separate windows, stacked |
 | `board-folder` | `/Users/carlos/Projects/aurora/aurora-catalyst` | Project whose Backlog.md board opens |
-| `MONITOR_HEIGHT` | `228` | Height of the monitor window in points |
+| `MONITOR_HEIGHT` | `228` | Height of the monitor in points, as a window with its title bar |
 
-The default height fits 6 sessions with the current Ghostty font. If you change the font size, measure again:
+The split pane has no title bar, so it gets `MONITOR_HEIGHT` minus an estimated 28 pt title bar. In both modes the default height fits 6 sessions with the current Ghostty font. If you change the font size, measure again:
 
 ```bash
 MONITOR_HEIGHT=250 claude-workspace
@@ -94,9 +93,8 @@ MONITOR_HEIGHT=250 claude-workspace
 - **Sessions.** `claude agents --json` gives the status, the name and the process of each interactive session, in about 0.15 s. The monitor reads it every 1.5 s.
 - **Real folder.** `claude agents` reports the folder where the session started, not the current one. A `cd` into a worktree only shows in the session transcript, so the monitor reads the last `cwd` from `~/.claude/projects/<encoded start folder>/<sessionId>.jsonl`. The folder updates when the session writes to its transcript.
 - **Focus.** `ps` gives the `tty` of the session process; Ghostty's AppleScript finds the terminal with that `tty` and focuses it. `src/ghostty.ts` is the only terminal-specific file: another terminal needs only a new version of it.
-- **Workspace.** Ghostty opens the windows; System Events moves them, because Ghostty's AppleScript does not expose window position. macOS can push a window below a menu bar that `visibleFrame` does not report, so the script reads where the monitor really landed and puts the board right below it.
-
-A Ghostty split would keep both panes in one window, but Ghostty resizes splits proportionally: the monitor would stop showing exactly 6 sessions when the window changes size. That is why the workspace uses two windows.
+- **Workspace.** Ghostty opens the windows and creates the split; System Events moves the windows, because Ghostty's AppleScript does not expose window position. In `--window` mode, macOS can push the monitor below a menu bar that `visibleFrame` does not report, so the script reads where the monitor really landed and puts the board right below it.
+- **Split versus windows.** Ghostty resizes splits proportionally. If you change the height of the split window, the monitor gains or loses rows and stops showing exactly 6 sessions. Separate windows keep the monitor height fixed.
 
 ## Development
 

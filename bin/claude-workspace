@@ -1,20 +1,41 @@
 #!/usr/bin/env bash
-# Opens claude-monitor and the Backlog.md board in two Ghostty windows, stacked on the main display:
-# the monitor keeps a fixed height at the top, the board takes the rest of the usable height.
-# Needs Accessibility permission for the terminal that runs it (System Events moves the windows).
+# Opens claude-monitor above the Backlog.md board on the screen of the frontmost Ghostty window.
+# Default: one window split in two panes. -w / --window: two separate windows.
+# The monitor keeps a fixed height; the board takes the rest of the usable height.
+# Needs Accessibility permission for Ghostty (System Events moves the windows).
 set -euo pipefail
 
-# 228 pt fits 6 sessions plus the table chrome with the current Ghostty font; measure again if the font changes.
-MONITOR_HEIGHT=${MONITOR_HEIGHT:-228}
-BOARD_DIR=${1:-/Users/carlos/Projects/aurora/aurora-catalyst}
+usage() {
+    echo "usage: claude-workspace [-w|--window] [board-folder]" >&2
+    exit 1
+}
 
-osascript - "$MONITOR_HEIGHT" "$BOARD_DIR" <<'APPLESCRIPT'
+MODE=split
+BOARD_DIR=/Users/carlos/Projects/aurora/aurora-catalyst
+for arg in "$@"; do
+    case $arg in
+        -w | --window) MODE=window ;;
+        -h | --help) usage ;;
+        -*) echo "claude-workspace: unknown option $arg" >&2; usage ;;
+        *) BOARD_DIR=$arg ;;
+    esac
+done
+
+# Height of the monitor window, title bar included. 228 pt fits 6 sessions plus the table chrome
+# with the current Ghostty font; measure again if the font changes.
+MONITOR_HEIGHT=${MONITOR_HEIGHT:-228}
+
+osascript - "$MODE" "$MONITOR_HEIGHT" "$BOARD_DIR" >/dev/null <<'APPLESCRIPT'
 use framework "AppKit"
 use scripting additions
 
+-- Estimated height of a Ghostty title bar; a split pane has none, so it needs this much less.
+property titleBar : 28
+
 on run argv
-    set monitorHeight to (item 1 of argv) as integer
-    set boardDir to item 2 of argv
+    set mode to item 1 of argv
+    set monitorHeight to (item 2 of argv) as integer
+    set boardDir to item 3 of argv
 
     -- Cocoa measures y from the bottom of the first screen (the one with the menu bar);
     -- System Events measures it from the top of that same screen.
@@ -42,27 +63,43 @@ on run argv
     set h to item 2 of item 2 of usable as integer
     set top to screenHeight - (item 2 of item 1 of usable as integer) - h
 
-    -- macOS may push the monitor below a menu bar that visibleFrame does not report,
-    -- so the board starts where the monitor really ended, not where it was asked to go.
-    set {monitorY, realHeight} to my openWindow("claude-monitor", boardDir, {x, top, w, monitorHeight})
-    set boardTop to monitorY + realHeight
-    my openWindow("backlog board", boardDir, {x, boardTop, w, top + h - boardTop})
+    if mode is "window" then
+        -- macOS may push the monitor below a menu bar that visibleFrame does not report,
+        -- so the board starts where the monitor really ended, not where it was asked to go.
+        set {win, monitorY, realHeight} to my openWindow("claude-monitor", boardDir, {x, top, w, monitorHeight})
+        set boardTop to monitorY + realHeight
+        my openWindow("backlog board", boardDir, {x, boardTop, w, top + h - boardTop})
+    else
+        set {win, windowY, realHeight} to my openWindow("claude-monitor", boardDir, {x, top, w, h})
+        tell application "Ghostty"
+            set monitorPane to focused terminal of selected tab of win
+            split monitorPane direction down with configuration (my shellConfig("backlog board", boardDir))
+        end tell
+        delay 0.5
+        -- A new split starts at half of the content height; move the divider up to the monitor height.
+        set moveUp to round ((realHeight - titleBar) / 2 - (monitorHeight - titleBar))
+        tell application "Ghostty" to perform action ("resize_split:up," & moveUp) on monitorPane
+    end if
 end run
 
-on openWindow(shellCommand, dir, frame)
+on shellConfig(shellCommand, dir)
     tell application "Ghostty"
         set config to new surface configuration
         -- A login + interactive shell loads PATH (nvm, ~/.local/bin) the same way a normal tab does.
         set command of config to "/bin/zsh -lic " & quoted form of shellCommand
         set initial working directory of config to dir
-        new window with configuration config
     end tell
+    return config
+end shellConfig
+
+on openWindow(shellCommand, dir, frame)
+    tell application "Ghostty" to set win to new window with configuration (my shellConfig(shellCommand, dir))
     delay 0.5
     -- The window just created is the frontmost one.
     tell application "System Events" to tell process "Ghostty"
         set position of window 1 to {item 1 of frame, item 2 of frame}
         set size of window 1 to {item 3 of frame, item 4 of frame}
-        return {item 2 of (get position of window 1), item 2 of (get size of window 1)}
+        return {win, item 2 of (get position of window 1), item 2 of (get size of window 1)}
     end tell
 end openWindow
 APPLESCRIPT

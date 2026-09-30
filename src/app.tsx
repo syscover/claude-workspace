@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { focusTerminal } from './ghostty.js';
 import { fitColumns, scrollOffset, type ColumnSize } from './layout.js';
 import { notify } from './notify.js';
+import { crackWhip } from './whip.js';
 import { locationLabel, readSessions, transitions, type Session, type Status } from './sessions.js';
 
 const SPINNER = ['·', '✢', '✳', '✶', '✻', '✽', '✻', '✶', '✳', '✢'];
@@ -77,6 +78,7 @@ export function App() {
 
     useInput((input, key) => {
         if (input === 'q') exit();
+        if (input === 'p') crackWhip();
         if (sessions.length === 0) return;
         if (key.upArrow || input === 'k') setSelectedId(sessions[Math.max(0, index - 1)].sessionId);
         if (key.downArrow || input === 'j') setSelectedId(sessions[Math.min(sessions.length - 1, index + 1)].sessionId);
@@ -125,7 +127,7 @@ export function App() {
                 })}
             </Box>
             {message && <Text color="red">{message}</Text>}
-            <Text dimColor wrap="truncate">{range}↑/↓ select · enter focus · q quit</Text>
+            <Text dimColor wrap="truncate">{range}↑/↓ select · enter focus · p punish · q quit</Text>
         </Box>
     );
 }

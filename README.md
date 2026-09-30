@@ -17,7 +17,7 @@ The monitor shows which session works, which one waits for you, and where each o
 │  ●  waiting  T-221            permission prompt   ⎇ task+T-221       │
 │  ✢  busy     T-132                                ⎇ T-132/backend    │
 └──────────────────────────────────────────────────────────────────────┘
-1–3 of 7 · ↑/↓ select · enter focus · q quit
+1–3 of 7 · ↑/↓ select · enter focus · p punish · q quit
 ```
 
 ## Requirements
@@ -75,6 +75,7 @@ The app opens in the alternate screen, like `vim` or `less`, and fills the whole
 | --- | --- |
 | `↑` / `↓` or `k` / `j` | Select a session |
 | `Enter` | Focus the Ghostty tab of the selected session |
+| `p` | Punish: crack a whip |
 | `q` | Quit |
 
 ### Columns

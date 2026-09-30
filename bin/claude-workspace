@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Opens claude-monitor and the Backlog.md board in two Ghostty windows, stacked on the main display:
+# the monitor keeps a fixed height at the top, the board takes the rest of the usable height.
+# Needs Accessibility permission for the terminal that runs it (System Events moves the windows).
+set -euo pipefail
+
+# 228 pt fits 6 sessions plus the table chrome with the current Ghostty font; measure again if the font changes.
+MONITOR_HEIGHT=${MONITOR_HEIGHT:-228}
+BOARD_DIR=${1:-/Users/carlos/Projects/aurora/aurora-catalyst}
+
+osascript - "$MONITOR_HEIGHT" "$BOARD_DIR" <<'APPLESCRIPT'
+use framework "AppKit"
+use scripting additions
+
+on run argv
+    set monitorHeight to (item 1 of argv) as integer
+    set boardDir to item 2 of argv
+
+    -- Cocoa measures y from the bottom of the first screen (the one with the menu bar);
+    -- System Events measures it from the top of that same screen.
+    set allScreens to current application's NSScreen's screens() as list
+    set screenHeight to item 2 of item 2 of ((item 1 of allScreens)'s frame()) as integer
+
+    -- Open on the screen of the frontmost Ghostty window: the one where this command runs.
+    tell application "System Events" to tell process "Ghostty"
+        set {wx, wy} to position of window 1
+        set {ww, wh} to size of window 1
+    end tell
+    set cx to wx + ww / 2
+    set cy to screenHeight - (wy + wh / 2)
+    set target to item 1 of allScreens
+    repeat with s in allScreens
+        set f to s's frame()
+        set {fx, fy} to item 1 of f
+        set {fw, fh} to item 2 of f
+        if cx ≥ fx and cx < fx + fw and cy > fy and cy ≤ fy + fh then set target to contents of s
+    end repeat
+
+    set usable to target's visibleFrame()
+    set x to item 1 of item 1 of usable as integer
+    set w to item 1 of item 2 of usable as integer
+    set h to item 2 of item 2 of usable as integer
+    set top to screenHeight - (item 2 of item 1 of usable as integer) - h
+
+    -- macOS may push the monitor below a menu bar that visibleFrame does not report,
+    -- so the board starts where the monitor really ended, not where it was asked to go.
+    set {monitorY, realHeight} to my openWindow("claude-monitor", boardDir, {x, top, w, monitorHeight})
+    set boardTop to monitorY + realHeight
+    my openWindow("backlog board", boardDir, {x, boardTop, w, top + h - boardTop})
+end run
+
+on openWindow(shellCommand, dir, frame)
+    tell application "Ghostty"
+        set config to new surface configuration
+        -- A login + interactive shell loads PATH (nvm, ~/.local/bin) the same way a normal tab does.
+        set command of config to "/bin/zsh -lic " & quoted form of shellCommand
+        set initial working directory of config to dir
+        new window with configuration config
+    end tell
+    delay 0.5
+    -- The window just created is the frontmost one.
+    tell application "System Events" to tell process "Ghostty"
+        set position of window 1 to {item 1 of frame, item 2 of frame}
+        set size of window 1 to {item 3 of frame, item 4 of frame}
+        return {item 2 of (get position of window 1), item 2 of (get size of window 1)}
+    end tell
+end openWindow
+APPLESCRIPT

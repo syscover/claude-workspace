@@ -1,0 +1,29 @@
+{
+  "name": "claude-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Terminal dashboard of the local Claude Code sessions, with focus on their Ghostty tab",
+  "type": "module",
+  "bin": {
+    "claude-monitor": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.tsx",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "ink": "^7.1.1",
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}

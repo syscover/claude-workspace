@@ -118,9 +118,9 @@ MONITOR_HEIGHT=250 claude-workspace
 
 ## How it works
 
-- **Sessions.** `claude agents --json` gives the status, the name and the process of each interactive session, in about 0.15 s. The monitor reads it every 1.5 s.
+- **Sessions.** `claude agents --json` gives the status, the name and the process of each live session, interactive or background, in about 0.15 s. The monitor reads it every 1.5 s.
 - **Real folder.** `claude agents` reports the folder where the session started, not the current one. A `cd` into a worktree only shows in the session transcript, so the monitor reads the last `cwd` from `~/.claude/projects/<encoded start folder>/<sessionId>.jsonl`. The folder updates when the session writes to its transcript.
-- **Focus.** `ps` gives the `tty` of the session process; Ghostty's AppleScript finds the terminal with that `tty` and focuses it. `src/ghostty.ts` is the only terminal-specific file: another terminal needs only a new version of it.
+- **Focus.** `ps` gives the `tty` of the session process. A background session runs in a pty of the Claude daemon, so the monitor walks up to the daemon and takes the `tty` of the process named in its `--spawned-by`: the tab where you talk to the session. Ghostty's AppleScript finds the terminal with that `tty` and focuses it. `src/ghostty.ts` is the only terminal-specific file: another terminal needs only a new version of it.
 - **Workspace.** In split mode the script finds its own Ghostty terminal by its `tty`, splits it and then replaces itself with the monitor (`exec claude-monitor`). Ghostty opens the windows and creates the split; System Events moves the windows, because Ghostty's AppleScript does not expose window position. In `--window` mode, macOS can push the monitor below a menu bar that `visibleFrame` does not report, so the script reads where the monitor really landed and puts the board right below it.
 - **Split versus windows.** Ghostty resizes splits proportionally. If you change the height of the split window, the monitor gains or loses rows and stops showing exactly 6 sessions. Separate windows keep the monitor height fixed.
 

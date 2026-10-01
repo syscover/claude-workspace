@@ -90,21 +90,48 @@ async function readTail(path: string): Promise<string | undefined> {
     }
 }
 
-async function ttysByPid(pids: number[]): Promise<Map<number, string>> {
-    if (pids.length === 0) return new Map();
-    const { stdout } = await run('ps', ['-o', 'pid=,tty=', '-p', pids.join(',')]).catch(() => ({ stdout: '' }));
-    const ttys = new Map<number, string>();
-    for (const line of stdout.split('\n')) {
-        const [pid, tty] = line.trim().split(/\s+/);
-        if (pid && tty && tty !== '??') ttys.set(Number(pid), `/dev/${tty}`);
+interface Process {
+    ppid: number;
+    tty: string | undefined;
+    command: string;
+}
+
+export function parseProcesses(psOutput: string): Map<number, Process> {
+    const table = new Map<number, Process>();
+    for (const line of psOutput.split('\n')) {
+        const match = line.trim().match(/^(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/);
+        if (!match) continue;
+        const [, pid, ppid, tty, command] = match;
+        table.set(Number(pid), { ppid: Number(ppid), tty: tty === '??' ? undefined : `/dev/${tty}`, command });
     }
-    return ttys;
+    return table;
+}
+
+// A background session runs in a pty of the Claude daemon; the user's tab is the
+// process that started the daemon, which the daemon names in `--spawned-by`.
+const SPAWNED_BY = /--spawned-by \{.*?"pid":(\d+)/;
+
+/** Terminal to focus for a session: its own tty, or the tab that started its daemon. */
+export function focusTty(entry: Pick<AgentEntry, 'kind' | 'pid'>, table: ReadonlyMap<number, Process>): string | undefined {
+    if (!entry.pid) return undefined;
+    if (entry.kind !== 'background') return table.get(entry.pid)?.tty;
+    for (let pid = entry.pid, proc = table.get(pid); proc; pid = proc.ppid, proc = table.get(pid)) {
+        const spawner = proc.command.match(SPAWNED_BY)?.[1];
+        if (spawner) return table.get(Number(spawner))?.tty;
+    }
+    return undefined;
+}
+
+async function readProcesses(): Promise<Map<number, Process>> {
+    const { stdout } = await run('ps', ['-A', '-ww', '-o', 'pid=,ppid=,tty=,command=']).catch(() => ({ stdout: '' }));
+    return parseProcesses(stdout);
 }
 
 export async function readSessions(): Promise<Session[]> {
     const { stdout } = await run('claude', ['agents', '--json']);
-    const entries = (JSON.parse(stdout) as AgentEntry[]).filter((e) => e.kind === 'interactive' && e.status);
-    const ttys = await ttysByPid(entries.flatMap((e) => (e.pid ? [e.pid] : [])));
+    // Only live sessions report a status; finished background jobs do not.
+    const entries = (JSON.parse(stdout) as AgentEntry[]).filter((e) => e.status);
+    const processes = await readProcesses();
 
     const sessions = await Promise.all(
         entries.map(async (e): Promise<Session> => {
@@ -116,7 +143,7 @@ export async function readSessions(): Promise<Session[]> {
                 waitingFor: e.waitingFor,
                 launchDir: e.cwd,
                 dir: (tail && lastCwd(tail)) ?? e.cwd,
-                tty: e.pid ? ttys.get(e.pid) : undefined,
+                tty: focusTty(e, processes),
             };
         }),
     );

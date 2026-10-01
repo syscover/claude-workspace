@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { lastCwd, locationLabel, sortSessions, transcriptPath, transitions, type Session } from './sessions.js';
+import {
+    focusTty,
+    lastCwd,
+    locationLabel,
+    parseProcesses,
+    sortSessions,
+    transcriptPath,
+    transitions,
+    type Session,
+} from './sessions.js';
 
 const repo = '/Users/me/Projects/app';
 
@@ -81,5 +90,39 @@ describe('transitions', () => {
 
     it('stays silent for a session it has not seen before', () => {
         expect(transitions(new Map(), [session({ status: 'idle' })])).toEqual([]);
+    });
+});
+
+describe('parseProcesses', () => {
+    it('reads pid, parent, tty and command, and drops the tty of a process without one', () => {
+        const table = parseProcesses(['  90645 15324 ttys010  claude', '24182 90645 ??       claude daemon run', ''].join('\n'));
+        expect(table.get(90645)).toEqual({ ppid: 15324, tty: '/dev/ttys010', command: 'claude' });
+        expect(table.get(24182)).toEqual({ ppid: 90645, tty: undefined, command: 'claude daemon run' });
+    });
+});
+
+describe('focusTty', () => {
+    const table = parseProcesses(
+        [
+            '90645 15324 ttys010  claude',
+            '24182 90645 ??       claude daemon run --origin transient --spawned-by {"label":"claude","cwd":"/a b","pid":90645}',
+            '24222 24182 ??       claude --bg-pty-host /tmp/pty.sock',
+            '24513 24222 ttys009  claude --session-id x --fork-session --resume /t.jsonl',
+            '50000 1     ttys002  claude',
+        ].join('\n'),
+    );
+
+    it('uses the tty of an interactive session', () => {
+        expect(focusTty({ kind: 'interactive', pid: 50000 }, table)).toBe('/dev/ttys002');
+    });
+
+    it('follows a background session up to the terminal that spawned its daemon', () => {
+        expect(focusTty({ kind: 'background', pid: 24513 }, table)).toBe('/dev/ttys010');
+    });
+
+    it('has no tty when the spawner is gone or the session has no process', () => {
+        const orphan = parseProcesses('24182 1 ?? claude daemon run --spawned-by {"pid":999}\n24513 24182 ttys009 claude');
+        expect(focusTty({ kind: 'background', pid: 24513 }, orphan)).toBeUndefined();
+        expect(focusTty({ kind: 'background' }, table)).toBeUndefined();
     });
 });

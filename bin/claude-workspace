@@ -50,6 +50,21 @@ on run argv
     set allScreens to current application's NSScreen's screens() as list
     set screenHeight to item 2 of item 2 of ((item 1 of allScreens)'s frame()) as integer
 
+    -- System Events only knows window order, and the frontmost Ghostty window is not always
+    -- the one this command runs in, so bring that one to the front first.
+    if mode is "split" then
+        tell application "Ghostty"
+            set monitorPane to first terminal whose tty is ttyPath
+            repeat with w in windows
+                if (count of (terminals of w whose tty is ttyPath)) > 0 then
+                    activate window w
+                    exit repeat
+                end if
+            end repeat
+        end tell
+        delay 0.2
+    end if
+
     -- Open on the screen of the frontmost Ghostty window: the one where this command runs.
     tell application "System Events" to tell process "Ghostty"
         set {wx, wy} to position of window 1
@@ -79,11 +94,10 @@ on run argv
         my openWindow("backlog board", boardDir, {x, boardTop, w, top + h - boardTop})
     else
         tell application "Ghostty"
-            set monitorPane to first terminal whose tty is ttyPath
             split monitorPane direction down with configuration (my shellConfig("backlog board", boardDir))
         end tell
         delay 0.5
-        -- The command runs in the frontmost window, so that is the one to fill the screen.
+        -- The window of this command is the frontmost one now, so that is the one to fill the screen.
         tell application "System Events" to tell process "Ghostty"
             set position of window 1 to {x, top}
             set size of window 1 to {w, h}
